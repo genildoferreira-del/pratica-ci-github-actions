@@ -1,6 +1,21 @@
+import os
+
 from flask import Flask, jsonify, request
 
 app = Flask(__name__)
+
+# Percentual fixo da promocao (so vale quando a Feature Flag esta ligada)
+DESCONTO_PERCENTUAL = 10
+
+
+def feature_desconto_ativa():
+    """Feature Flag controlada por variavel de ambiente.
+
+    Lida a CADA requisicao (e nao uma vez so na importacao), entao mudar
+    FEATURE_DESCONTO_PROMO muda o comportamento sem alterar o codigo.
+    """
+    valor = os.getenv("FEATURE_DESCONTO_PROMO", "false")
+    return valor.strip().lower() == "true"
 
 
 @app.route('/')
@@ -10,16 +25,15 @@ def home():
 
 @app.route('/api/status')
 def status():
-    return jsonify({"status": "operacional", "servico": "FastOrder-Web"})
+    return jsonify({
+        "status": "operacional",
+        "servico": "FastOrder-Web",
+        "features": {"desconto_promo": feature_desconto_ativa()},
+    })
 
 
-# Missao 5.1 - Rota /api/soma
-# Recebe dois parametros via Query String (?a=2&b=3)
-# e retorna um JSON no formato {"resultado": 5}
 @app.route('/api/soma')
 def soma():
-    # Os parametros da URL chegam sempre como String,
-    # entao precisamos converter para numero.
     try:
         a = float(request.args.get('a'))
         b = float(request.args.get('b'))
@@ -29,13 +43,41 @@ def soma():
         }), 400
 
     resultado = a + b
-
-    # Se o resultado for inteiro (ex: 15.0), devolve 15
     if resultado.is_integer():
         resultado = int(resultado)
-
     return jsonify({"resultado": resultado})
 
 
+@app.route('/api/desconto')
+def desconto():
+    # Dark launch: a rota existe no container, mas so responde com a flag on
+    if not feature_desconto_ativa():
+        return jsonify({"erro": "Funcionalidade indisponivel"}), 404
+
+    try:
+        preco = float(request.args.get('preco'))
+    except (TypeError, ValueError):
+        return jsonify({
+            "erro": "Informe um preco numerico. Ex: ?preco=100"
+        }), 400
+
+    if preco < 0:
+        return jsonify({"erro": "O preco nao pode ser negativo"}), 400
+
+    preco_final = round(preco * (1 - DESCONTO_PERCENTUAL / 100), 2)
+    return jsonify({
+        "preco_original": preco,
+        "desconto_percentual": DESCONTO_PERCENTUAL,
+        "preco_final": preco_final,
+    })
+
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000)
+    # Host e debug vem do ambiente: nada de debug=True nem 0.0.0.0 fixos
+    # no codigo (o Bandit acusa os dois). O Dockerfile define
+    # FLASK_HOST=0.0.0.0.
+    app.run(
+        host=os.getenv("FLASK_HOST", "127.0.0.1"),
+        port=int(os.getenv("PORT", "5000")),
+        debug=os.getenv("FLASK_DEBUG", "0") == "1",
+    )
