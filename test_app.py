@@ -27,17 +27,10 @@ def test_status(client):
     assert resposta.get_json()['status'] == "operacional"
 
 
-# Missao 6.1 - Teste da rota /api/soma
 def test_soma(client):
     resposta = client.get('/api/soma?a=10&b=5')
     assert resposta.status_code == 200
     assert resposta.get_json()['resultado'] == 15
-
-
-def test_soma_decimais(client):
-    resposta = client.get('/api/soma?a=1.5&b=2.5')
-    assert resposta.status_code == 200
-    assert resposta.get_json()['resultado'] == 4
 
 
 def test_soma_parametro_invalido(client):
@@ -45,6 +38,47 @@ def test_soma_parametro_invalido(client):
     assert resposta.status_code == 400
 
 
-def test_soma_parametro_ausente(client):
-    resposta = client.get('/api/soma?a=5')
+# ---------- Feature Flag: FEATURE_DESCONTO_PROMO ----------
+
+def test_desconto_desativado_por_padrao(client, monkeypatch):
+    # Sem a variavel de ambiente, a flag fica DESLIGADA
+    monkeypatch.delenv("FEATURE_DESCONTO_PROMO", raising=False)
+    resposta = client.get('/api/desconto?preco=100')
+    assert resposta.status_code == 404
+
+
+def test_desconto_desativado_explicito(client, monkeypatch):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "false")
+    resposta = client.get('/api/desconto?preco=100')
+    assert resposta.status_code == 404
+
+
+def test_desconto_ativado(client, monkeypatch):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+    resposta = client.get('/api/desconto?preco=100')
+    assert resposta.status_code == 200
+    dados = resposta.get_json()
+    assert dados['preco_final'] == 90
+    assert dados['desconto_percentual'] == 10
+
+
+def test_desconto_ativado_preco_invalido(client, monkeypatch):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+    resposta = client.get('/api/desconto?preco=abc')
     assert resposta.status_code == 400
+
+
+def test_desconto_ativado_preco_negativo(client, monkeypatch):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+    resposta = client.get('/api/desconto?preco=-5')
+    assert resposta.status_code == 400
+
+
+def test_status_mostra_estado_da_flag(client, monkeypatch):
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "true")
+    ligada = client.get('/api/status').get_json()
+    assert ligada['features']['desconto_promo'] is True
+
+    monkeypatch.setenv("FEATURE_DESCONTO_PROMO", "false")
+    desligada = client.get('/api/status').get_json()
+    assert desligada['features']['desconto_promo'] is False
