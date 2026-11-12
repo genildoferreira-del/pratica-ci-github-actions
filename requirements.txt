@@ -3,3 +3,6 @@ flake8
 werkzeug
 pytest-flask
 pytest
+bandit
+pip-audit
+ 
