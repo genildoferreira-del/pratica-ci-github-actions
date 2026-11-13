@@ -100,6 +100,10 @@ jobs:
           format: table
           severity: CRITICAL,HIGH
           exit-code: "1"
+          # Ignora so o que NAO tem correcao publicada (Fixed Version vazia).
+          # O que tem correcao continua bloqueando o pipeline.
+          ignore-unfixed: true
+          vuln-type: "os,library"
 
       - name: 5. Login no GitHub Container Registry
         if: github.event_name == 'push'
