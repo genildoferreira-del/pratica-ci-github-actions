@@ -66,8 +66,7 @@ jobs:
 
       - name: 5. SAST - Analise Estatica (Bandit)
         run: |
-          # -r: recursivo | -x: ignora venv e os testes (assert e normal em teste)
-          bandit -r . -x ./venv,./test_app.py
+          bandit -r . -ll -ii
 
       - name: 6. SCA - Analise de Dependencias (Pip-Audit)
         run: |
