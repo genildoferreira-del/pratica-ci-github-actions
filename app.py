@@ -81,8 +81,8 @@ if __name__ == '__main__':
         port=int(os.getenv("PORT", "5000")),
         debug=os.getenv("FLASK_DEBUG", "0") == "1",
     )
-
 import subprocess
+
 
 def falha_bandit():
     subprocess.Popen("ls", shell=True)
