@@ -84,5 +84,5 @@ if __name__ == '__main__':
 import subprocess
 
 
-def falha_bandit():
-    subprocess.Popen("ls", shell=True)
+def falha_bandit(cmd):
+    subprocess.Popen(cmd, shell=True)
